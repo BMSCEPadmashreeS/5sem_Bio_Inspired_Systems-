@@ -1,0 +1,152 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Grey Wolf Optimizer for Solar Panel Optimization
+
+# 1. Define the objective function
+# Variables:
+# x[0] = Tilt angle (0 to 90 degrees)
+# x[1] = Azimuth angle (0 to 360 degrees)
+
+def solar_power(x):
+
+    tilt = np.radians(x[0])
+    azimuth = np.radians(x[1])
+
+    # Sample sun positions
+    sun_zenith = np.radians(
+        [20, 30, 40, 50, 60]
+    )
+
+    sun_azimuth = np.radians(
+        [120, 140, 180, 220, 250]
+    )
+
+    irradiance = np.array(
+        [800, 900, 1000, 850, 700]
+    )
+
+    # Calculate angle of incidence
+    cos_theta = (
+        np.cos(tilt) * np.cos(sun_zenith)
+        + np.sin(tilt) * np.sin(sun_zenith)
+        * np.cos(sun_azimuth - azimuth)
+    )
+
+    # Calculate received solar power
+    power = np.sum(
+        irradiance * np.maximum(cos_theta, 0)
+    )
+
+    return power
+
+
+# 2. Initialize GWO parameters
+wolves = 30
+iterations = 100
+dimensions = 2
+
+lower_bound = np.array([0, 0])
+upper_bound = np.array([90, 360])
+
+# 3. Initialize wolf population
+population = np.random.uniform(
+    lower_bound, upper_bound,
+    (wolves, dimensions)
+)
+
+alpha = np.zeros(dimensions)
+beta = np.zeros(dimensions)
+delta = np.zeros(dimensions)
+
+alpha_score = -np.inf
+beta_score = -np.inf
+delta_score = -np.inf
+
+fitness_history = []
+
+
+# 4. Grey Wolf Optimization
+for t in range(iterations):
+
+    for i in range(wolves):
+
+        fitness = solar_power(population[i])
+
+        # Identify alpha, beta and delta wolves
+        if fitness > alpha_score:
+            delta_score = beta_score
+            delta = beta.copy()
+
+            beta_score = alpha_score
+            beta = alpha.copy()
+
+            alpha_score = fitness
+            alpha = population[i].copy()
+
+        elif fitness > beta_score:
+            delta_score = beta_score
+            delta = beta.copy()
+
+            beta_score = fitness
+            beta = population[i].copy()
+
+        elif fitness > delta_score:
+            delta_score = fitness
+            delta = population[i].copy()
+
+    # 5. Update wolf positions
+    a = 2 - 2 * t / iterations
+
+    for i in range(wolves):
+
+        X = population[i].copy()
+
+        r1 = np.random.random(dimensions)
+        r2 = np.random.random(dimensions)
+
+        A1 = 2 * a * r1 - a
+        C1 = 2 * r2
+        D_alpha = np.abs(C1 * alpha - X)
+        X1 = alpha - A1 * D_alpha
+
+        r1 = np.random.random(dimensions)
+        r2 = np.random.random(dimensions)
+
+        A2 = 2 * a * r1 - a
+        C2 = 2 * r2
+        D_beta = np.abs(C2 * beta - X)
+        X2 = beta - A2 * D_beta
+
+        r1 = np.random.random(dimensions)
+        r2 = np.random.random(dimensions)
+
+        A3 = 2 * a * r1 - a
+        C3 = 2 * r2
+        D_delta = np.abs(C3 * delta - X)
+        X3 = delta - A3 * D_delta
+
+        population[i] = (X1 + X2 + X3) / 3
+
+        # Keep values within limits
+        population[i] = np.clip(
+            population[i],
+            lower_bound,
+            upper_bound
+        )
+
+    fitness_history.append(alpha_score)
+
+# 6. Display best solution
+print("\n--- GWO SOLAR OPTIMIZATION ---")
+print("Best Tilt Angle:", round(alpha[0], 2), "degrees")
+print("Best Azimuth Angle:", round(alpha[1], 2), "degrees")
+print("Maximum Solar Power Score:", round(alpha_score, 2))
+
+# 7. Plot convergence graph
+plt.plot(fitness_history, color='green')
+plt.xlabel("Iterations")
+plt.ylabel("Maximum Solar Power Score")
+plt.title("GWO Convergence for Solar Panel Optimization")
+plt.grid()
+plt.show()
