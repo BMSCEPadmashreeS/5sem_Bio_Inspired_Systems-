@@ -1,0 +1,121 @@
+import random
+import math
+import matplotlib.pyplot as plt
+
+# 1. Define area and parameters
+area_size = 100
+num_sensors = 10
+sensor_radius = 15
+
+num_nests = 20
+iterations = 100
+pa = 0.25
+
+# 2. Generate grid points to measure coverage
+grid = [(x, y) for x in range(0, 101, 5)
+        for y in range(0, 101, 5)]
+
+
+# 3. Generate random sensor positions
+def random_nest():
+    return [(random.uniform(0, 100), random.uniform(0, 100))
+            for _ in range(num_sensors)]
+
+
+# 4. Fitness function
+def fitness(nest):
+    covered = 0
+
+    for x, y in grid:
+        for sx, sy in nest:
+            if math.sqrt((x - sx)**2 + (y - sy)**2) <= sensor_radius:
+                covered += 1
+                break
+
+    coverage = covered / len(grid)
+
+    # Energy cost (distance from base station at 0,0)
+    energy = sum(math.sqrt(sx**2 + sy**2) for sx, sy in nest)
+    energy = energy / (num_sensors * 100)
+
+    return coverage - 0.1 * energy
+
+
+# 5. Levy flight movement
+def levy_flight(nest):
+    new_nest = []
+
+    for x, y in nest:
+        step = random.gauss(0, 1) / (
+            abs(random.gauss(0, 1)) + 0.01
+        )
+
+        x = x + step * 5
+        y = y + step * 5
+
+        x = max(0, min(100, x))
+        y = max(0, min(100, y))
+
+        new_nest.append((x, y))
+
+    return new_nest
+
+
+# 6. Initialize nests
+nests = [random_nest() for _ in range(num_nests)]
+
+best_nest = max(nests, key=fitness)
+
+
+# 7. Cuckoo Search
+for iteration in range(iterations):
+
+    for i in range(num_nests):
+
+        # Generate new solution using Levy flight
+        new_nest = levy_flight(nests[i])
+
+        # Select random nest
+        j = random.randint(0, num_nests - 1)
+
+        # Replace if new solution is better
+        if fitness(new_nest) > fitness(nests[j]):
+            nests[j] = new_nest
+
+    # Abandon worst nests
+    nests.sort(key=fitness, reverse=True)
+
+    for i in range(int(pa * num_nests)):
+        nests[-(i + 1)] = random_nest()
+
+    # Update best solution
+    current_best = max(nests, key=fitness)
+
+    if fitness(current_best) > fitness(best_nest):
+        best_nest = current_best
+
+
+# 8. Display results
+print("Best Sensor Positions:")
+for sensor in best_nest:
+    print(sensor)
+
+print("Best Fitness:", fitness(best_nest))
+
+
+# 9. Plot sensor deployment
+plt.figure(figsize=(8, 8))
+
+for x, y in best_nest:
+    circle = plt.Circle((x, y), sensor_radius,
+                       color='blue', fill=False)
+    plt.gca().add_patch(circle)
+    plt.scatter(x, y, color='red')
+
+plt.xlim(0, area_size)
+plt.ylim(0, area_size)
+plt.grid(True)
+plt.title("Cuckoo Search - Sensor Deployment")
+plt.xlabel("X Coordinate")
+plt.ylabel("Y Coordinate")
+plt.show()
