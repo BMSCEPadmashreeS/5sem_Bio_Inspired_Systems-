@@ -1,0 +1,114 @@
+import random
+
+# 1. Define the network (nodes and link costs)
+graph = {
+    'A': {'B': 2, 'C': 4},
+    'B': {'A': 2, 'C': 1, 'D': 5},
+    'C': {'A': 4, 'B': 1, 'D': 2, 'E': 3},
+    'D': {'B': 5, 'C': 2, 'E': 1, 'F': 4},
+    'E': {'C': 3, 'D': 1, 'F': 2},
+    'F': {'D': 4, 'E': 2}
+}
+
+source = 'A'
+destination = 'F'
+
+# 2. Initialize ACO parameters
+num_ants = 10
+iterations = 50
+alpha = 1
+beta = 2
+evaporation = 0.5
+Q = 100
+
+# 3. Initialize pheromone values
+pheromone = {}
+
+for node in graph:
+    for neighbor in graph[node]:
+        pheromone[(node, neighbor)] = 1.0
+
+
+# Calculate path cost
+def path_cost(path):
+    cost = 0
+    for i in range(len(path) - 1):
+        cost += graph[path[i]][path[i + 1]]
+    return cost
+
+
+# 4. Ant selects the next node
+def select_next_node(current, visited):
+    choices = []
+
+    for neighbor in graph[current]:
+        if neighbor not in visited:
+            choices.append(neighbor)
+
+    if not choices:
+        return None
+
+    probabilities = []
+
+    for node in choices:
+        ph = pheromone[(current, node)] ** alpha
+        heuristic = (1 / graph[current][node]) ** beta
+        probabilities.append(ph * heuristic)
+
+    return random.choices(choices, weights=probabilities, k=1)[0]
+
+
+# 5. Generate paths for ants
+def generate_path():
+    path = [source]
+    current = source
+
+    while current != destination:
+        next_node = select_next_node(current, path)
+
+        if next_node is None:
+            return None
+
+        path.append(next_node)
+        current = next_node
+
+    return path
+
+
+# 6. ACO algorithm
+best_path = None
+best_cost = float('inf')
+
+for iteration in range(iterations):
+
+    all_paths = []
+
+    # Each ant finds a path
+    for ant in range(num_ants):
+        path = generate_path()
+
+        if path is not None:
+            cost = path_cost(path)
+            all_paths.append((path, cost))
+
+            # Update best path
+            if cost < best_cost:
+                best_cost = cost
+                best_path = path
+
+    # 7. Evaporate pheromones
+    for edge in pheromone:
+        pheromone[edge] *= (1 - evaporation)
+
+    # 8. Deposit new pheromones
+    for path, cost in all_paths:
+        deposit = Q / cost
+
+        for i in range(len(path) - 1):
+            edge = (path[i], path[i + 1])
+            pheromone[edge] += deposit
+
+
+# 9. Display the best route
+print("Best route:", best_path)
+print("Minimum cost:", best_cost)
